@@ -1,85 +1,102 @@
-#  Mental Health Trends During COVID-19  
-**Advanced Statistical Analysis of Anxiety and Depression Indicators in the U.S.**  
-**Author**: Ronak Fathi
 
-##  Overview  
-This project uses advanced statistical methods to analyze trends in anxiety and depression symptoms during the COVID-19 pandemic using the CDC's Household Pulse Survey. We explored both national-level and subgroup-level patterns across time, applying models like GAM, LMM, and PCA to detect non-linear trends and demographic disparities.
+# Mental Health Trends and Demographic Disparities During and After the COVID-19 Pandemic
 
----
+## Project Overview
 
-##  Dataset Description  
-- **Source**: [CDC Household Pulse Survey](https://www.cdc.gov/nchs/covid19/pulse/mental-health.htm)  
-- **Scope**: U.S. adults reporting symptoms of anxiety and/or depression from 2020 to 2024  
-- **Variables**:  
-  - `indicator`: Type of symptom reported  
-  - `group`: Demographic category (e.g., age, race)  
-  - `subgroup`: Specific group (e.g., 18–29, Hispanic)  
-  - `value`: Percent reporting symptoms  
-  - `start_date` / `end_date`: Survey time window  
-  - `time_numeric`: Encoded numeric date for modeling
+This project examines how symptoms consistent with anxiety and depression changed among U.S. adults between April 2020 and September 2024, with particular attention to differences across age and racial/ethnic groups.
 
----
+Using publicly available estimates from the **U.S. Census Bureau Household Pulse Survey**, disseminated by the National Center for Health Statistics (NCHS), the analysis investigates whether demographic disparities in mental health symptoms changed over time, rather than simply describing overall pandemic-era trends.
 
-##  Methodology  
+The primary outcome is the percentage of adults reporting symptoms of anxiety or depressive disorders. Anxiety and depressive symptoms are also examined separately as secondary outcomes.
 
-- **Preprocessing**:
-  - Cleaned variable names and handled missing data
-  - Converted time into numeric format
-  - Filtered only records related to anxiety/depression symptoms  
+## Research Questions
 
-- **Exploratory Data Analysis**:
-  - Visualized national trends with time series plots
-  - Identified nonlinear trends, seasonal effects, and possible outliers  
+1. How did the prevalence of anxiety or depressive symptoms evolve among U.S. adults between 2020 and 2024?
+2. How did differences in symptom prevalence across age groups change over this period?
+3. How did differences across racial and ethnic groups evolve?
+4. Were the observed disparity patterns approximately linear, nonlinear, or potentially characterized by changes in level or trend?
+5. Were the main conclusions robust to alternative reference groups, outcome definitions, and modelling approaches?
 
-- **Modeling & Statistical Analysis**:
-  -  **GLM**: Modeled linear time trend; found significant increase over time  
-  -  **GAM**: Captured flexible, nonlinear patterns in national-level trends  
-  -  **LMM**: Modeled subgroup-specific symptom trajectories with random effects  
-  -  **LOESS**: Visualized local trend fluctuations over weeks  
-  -  **MANOVA**: Confirmed significant differences across demographic subgroups  
-  -  **PCA**: Reduced dimensionality and identified underlying symptom patterns  
-  -  **Clustering**: Grouped subgroups with similar temporal response profiles  
+## Data
 
-- **Model Diagnostics**:
-  - Plotted residuals, Q-Q, and Cook's distance for GLM
-  - Found some non-linearity and heteroscedasticity, supporting need for GAM
+The analysis uses repeated cross-sectional estimates from the Household Pulse Survey, covering April 2020 to September 2024.
 
----
+The dataset includes:
+- Estimates of anxiety disorder symptoms.
+- Estimates of depressive disorder symptoms.
+- Estimates of combined anxiety or depressive disorder symptoms.
+- Demographic breakdowns, including age and race/Hispanic ethnicity.
+- Survey-period dates and published confidence intervals.
 
-##  Key Findings
+The study uses published aggregate estimates rather than individual-level respondent records. Consequently, the analysis focuses on population-level patterns and does not examine individual changes over time.
 
-- **Symptom rates peaked** early in the pandemic and declined by 2024, though nonlinearly  
-- **Subgroups (e.g., age, race)** showed differing baseline levels and trends  
-- **GAM and LOESS** provided smoother, more accurate trend representations  
-- **LMM** revealed group-level differences not visible in fixed-effect models  
-- **PCA** showed PC1 linked to symptom severity, PC2 to variability over time  
-- **K-means clustering** revealed demographic groupings with shared mental health trajectories  
-- **MANOVA** confirmed that symptom trends were significantly different across age and race categories
+## Statistical Methods
 
+The analysis follows a structured approach, combining descriptive analysis, disparity measurement, and statistical model comparison.
 
----
+**1. Data preparation and assessment**
+- Data cleaning, date parsing, and consistency checks.
+- Examination of missing estimates, survey-period coverage, and subgroup completeness.
+- Assessment of the temporal structure and irregular spacing of survey observations.
 
-##  Tools & Packages
+**2. Descriptive analysis**
+- Visualization of national trends in combined anxiety and depressive symptoms.
+- Separate examination of anxiety and depressive symptoms.
+- Comparison of temporal patterns across age and racial/ethnic groups.
 
-- R, R Markdown  
-- `tidyverse`, `ggplot2`, `lubridate`, `mgcv`, `lme4`, `factoextra`, `cluster`  
-- Statistical methods: GLM, GAM, LMM, MANOVA, PCA, LOESS, K-means
+**3. Disparity measurement**
 
----
+For each demographic group, disparities are measured relative to a reference group using two complementary measures:
 
-##  References
+- **Absolute disparity:** difference in prevalence, expressed in percentage points.
+- **Relative disparity:** prevalence ratio between the group and its reference group.
 
-- CDC Household Pulse Survey: [link](https://www.cdc.gov/nchs/covid19/pulse/mental-health.htm ) 
-- Wood, S. (2017). *Generalized Additive Models: An Introduction with R*  
-- Pinheiro & Bates (2000). *Mixed-Effects Models in S and S-PLUS*  
-- Jolliffe, I. & Cadima, J. (2016). *Principal Component Analysis: A Review*
+The provisional reference groups are adults aged 60–69 years and non-Hispanic White adults.
 
----
+**4. Statistical modelling and model comparison**
 
-##  Conclusion
+Several candidate approaches are considered for modelling changes in disparity over time:
 
-This project demonstrates how a combination of statistical modeling, multivariate analysis, and visualization techniques can uncover complex, evolving mental health patterns during a global crisis. Our findings highlight the importance of using flexible, subgroup-sensitive models to inform public health insights and interventions.
+- Linear regression to assess average linear trends.
+- Generalized additive models (GAMs) to capture potentially nonlinear temporal patterns.
+- Interrupted time-series models, conditional on identifying a defensible survey-related or methodological break point.
+- GAMs with continuous-time correlation structures to account for temporal dependence where supported by diagnostics.
 
+Model selection considers goodness of fit, residual diagnostics, temporal dependence, interpretability, and model complexity rather than relying on statistical significance alone.
+
+**5. Robustness and sensitivity analyses**
+- Alternative reference groups.
+- Absolute versus relative disparity measures.
+- Separate anxiety and depressive symptom outcomes.
+- Alternative modelling specifications.
+- Assessment of subgroup coverage and estimate precision.
+
+## Interpretation and Limitations
+
+This is an observational analysis of repeated cross-sectional, published survey estimates. It does not establish causal relationships between the pandemic, public-health policies, and mental health outcomes.
+
+Reported symptoms are not equivalent to clinical diagnoses. In addition, the published subgroup estimates do not provide all the information needed to calculate design-based uncertainty for differences between groups. In particular, covariance between subgroup estimates may be unavailable.
+
+Survey design and methodological changes across collection periods also require careful assessment before interpreting long-term trends as directly comparable.
+
+## Tools
+
+- **R:** data preparation, statistical analysis, modelling, and visualization.
+- **tidyverse:** data manipulation and visualization.
+- **mgcv:** generalized additive models.
+- **nlme:** temporal correlation structures and mixed modelling.
+- **lubridate:** date handling.
+- **knitr:** reproducible reporting.
+
+## Project Status
+
+The project is undergoing statistical analysis and methodological refinement. Model comparison, diagnostic assessment, and sensitivity analyses are being used to determine which conclusions are adequately supported by the data.
+
+## Data Source
+
+U.S. Census Bureau, Household Pulse Survey, with estimates disseminated by the National Center for Health Statistics (NCHS).
+
+The dataset is publicly available through the [CDC/NCHS Household Pulse Survey](https://www.cdc.gov/nchs/covid19/pulse/).
 
 
 
