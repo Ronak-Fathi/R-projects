@@ -1,0 +1,2281 @@
+
+
+---
+title: "Changes in Age and Racial/Ethnic Disparities in Anxiety and Depressive Symptoms During the COVID-19 Pandemic"
+author: "Ronak Fathi"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    latex_engine: xelatex
+geometry: margin=1in
+fontsize: 10pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center",
+  fig.width = 9,
+  fig.height = 5.5,
+  out.width = "95%"
+)
+
+library(tidyverse)
+library(lubridate)
+library(janitor)
+library(knitr)
+library(scales)
+library(mgcv)
+library(nlme)
+library(broom)
+
+theme_set(theme_minimal(base_size = 11))
+
+# ---------------------------------------------------------
+# Project configuration
+# ---------------------------------------------------------
+
+data_file <- "data/raw/Indicators_of_Anxiety_or_Depression.csv"
+
+primary_outcome <- "Symptoms of Anxiety Disorder or Depressive Disorder"
+
+secondary_outcomes <- c(
+  "Symptoms of Anxiety Disorder",
+  "Symptoms of Depressive Disorder"
+)
+
+age_group_name <- "By Age"
+race_group_name <- "By Race/Hispanic ethnicity"
+
+# Reference categories
+age_reference_pattern <- regex(
+  "^\\s*60\\s*[-–—]\\s*69\\s+years\\s*$",
+  ignore_case = TRUE
+)
+
+race_reference_label <- "Non-Hispanic White, single race"
+
+# Candidate model settings
+gam_k <- 8
+
+# Leave as NA until an HPS documentation-supported
+# discontinuity date has been established.
+its_break_date <- as.Date(NA)
+
+# The analysis does not assume that a survey phase label
+# automatically represents a measurement discontinuity.
+```
+
+# 1. Research Overview
+
+## 1.1. Research question
+
+This study examines how age-related and racial/ethnic disparities in symptoms consistent with anxiety or depression changed among U.S. adults during the COVID-19 pandemic and its aftermath.
+
+The primary research question is:
+
+**How did differences in the estimated prevalence of anxiety or depressive symptoms across age groups and racial/ethnic groups evolve over the Household Pulse Survey period?**
+
+The analysis focuses on two demographic dimensions:
+
+1. Age-related disparities.
+2. Racial/ethnic disparities.
+
+These are examined separately because the published aggregate dataset does not provide cross-classified age-by-race estimates.
+
+## 1.2. Study aims
+
+The primary aims are to:
+
+- Describe national trends in the combined anxiety or depressive symptom indicator.
+- Quantify differences between age groups over time.
+- Quantify differences between racial/ethnic groups over time.
+- Evaluate whether demographic gaps changed linearly or nonlinearly.
+- Investigate documented survey transitions that may affect temporal comparability.
+- Assess the robustness of findings under alternative model specifications and reference groups.
+
+## 1.3. Outcomes
+
+The primary outcome is the published percentage of adults reporting symptoms consistent with an anxiety disorder or depressive disorder.
+
+The two separate indicators are treated as secondary outcomes:
+
+- Symptoms of Anxiety Disorder.
+- Symptoms of Depressive Disorder.
+
+These indicators represent reported symptoms and should not be interpreted as clinical diagnoses.
+
+# 2. Data Source and Study Design
+
+## 2.1. Data source
+
+The analysis uses published estimates from the U.S. Census Bureau Household Pulse Survey (HPS), disseminated through the Centers for Disease Control and Prevention and the National Center for Health Statistics.
+
+The dataset contains estimates for national, state, and demographic subgroups across multiple survey periods.
+
+The analysis uses published aggregate estimates rather than individual respondent-level records.
+
+## 2.2. Study design
+
+This is a repeated cross-sectional analysis of published survey estimates.
+
+The same individuals are not followed over time. Changes in estimates therefore describe changes in population-level reported symptom prevalence, not within-person changes.
+
+## 2.3. Data structure
+
+The dataset includes:
+
+- Indicator.
+- Demographic group.
+- State.
+- Subgroup.
+- Survey phase.
+- Survey period.
+- Survey-period start and end dates.
+- Published estimate.
+- Lower and upper confidence limits.
+
+The survey periods are not equally spaced. Actual dates are therefore used in temporal analyses.
+
+# 3. Statistical Analysis Plan
+
+## 3.1. Primary estimands
+
+For demographic subgroup \(g\) at survey time \(t\), the primary estimand is the absolute prevalence difference relative to a reference group:
+
+\[
+D_{g,t}=P_{g,t}-P_{\mathrm{ref},t}
+\]
+
+where:
+
+- \(P_{g,t}\) is the published prevalence estimate for subgroup \(g\).
+- \(P_{\mathrm{ref},t}\) is the published estimate for the reference subgroup.
+- \(D_{g,t}\) is the absolute difference in percentage points.
+
+The relative measure is the prevalence ratio:
+
+\[
+R_{g,t}=\frac{P_{g,t}}{P_{\mathrm{ref},t}}
+\]
+
+The log prevalence ratio is also calculated:
+
+\[
+L_{g,t}=\log(R_{g,t})
+\]
+
+Absolute differences are the primary disparity measure. Prevalence ratios and log prevalence ratios provide complementary descriptions.
+
+## 3.2. Reference groups
+
+For the primary analysis:
+
+- Age reference: 60–69 years.
+- Racial/ethnic reference: Non-Hispanic White, single race.
+
+These categories are retained provisionally and examined through sensitivity analyses using alternative reference groups.
+
+## 3.3. Candidate statistical models
+
+The candidate models are fitted to the demographic gap trajectories, separately for age and race/ethnicity.
+
+### Model A: Linear trend
+
+\[
+D_t=\beta_0+\beta_1t+\epsilon_t
+\]
+
+This model estimates the average linear direction of change in the disparity.
+
+### Model B: Generalized additive model
+
+\[
+D_t=\beta_0+s(t)+\epsilon_t
+\]
+
+The smooth function allows the disparity trajectory to change nonlinearly over time.
+
+### Model C: Interrupted time-series model
+
+Where an HPS documentation-supported discontinuity is identified, the following segmented model is considered:
+
+\[
+D_t=\beta_0+\beta_1t+\beta_2I_t+
+\beta_3(t-t_0)I_t+\epsilon_t
+\]
+
+Here, \(t_0\) is the documented break date and \(I_t\) indicates observations after that date.
+
+This model is not fitted unless a defensible break date has been established independently of the observed disparity results.
+
+### Model D: GAM with correlated errors
+
+A GAM with a continuous-time autoregressive correlation structure is considered when residual diagnostics indicate temporal dependence.
+
+This model retains a flexible nonlinear mean trajectory while accounting for correlation between observations.
+
+## 3.4. Model comparison and selection
+
+Candidate models are assessed using:
+
+- Information criteria where likelihood comparisons are appropriate.
+- Model complexity and effective degrees of freedom.
+- Residual patterns.
+- Residual autocorrelation.
+- Sensitivity to influential observations.
+- Interpretability and consistency with the research question.
+
+The most complex model is not automatically selected.
+
+The primary model is selected based on the combined evidence from model fit, diagnostics, temporal structure, and interpretability.
+
+## 3.5. Uncertainty in published estimates
+
+The dataset provides confidence intervals for individual subgroup estimates.
+
+Approximate standard errors may be derived from confidence interval widths if the confidence level and construction are confirmed.
+
+However, the covariance between subgroup estimates is not available in the current aggregate dataset. Consequently, the uncertainty of a difference between two subgroup estimates cannot be calculated exactly from the individual confidence intervals alone.
+
+The primary model comparisons are therefore interpreted as analyses of published estimate trajectories. Model-based standard errors do not automatically represent survey-design-based uncertainty.
+
+Any gap uncertainty calculated under an independence assumption is explicitly labelled as approximate and exploratory.
+
+## 3.6. Multiple comparisons
+
+The primary analysis includes multiple age-group and racial/ethnic-group comparisons.
+
+Holm adjustment is used for families of related secondary inferential tests. The interpretation distinguishes between exploratory trajectory patterns and statistically supported evidence.
+
+## 3.7. Sensitivity analyses
+
+The planned sensitivity analyses include:
+
+- Alternative analysis windows based on documented survey transitions.
+- Alternative age reference groups.
+- Alternative disparity measures.
+- Linear versus nonlinear temporal specifications.
+- Models with and without temporal correlation.
+- Examination of unusually imprecise or influential subgroup estimates.
+
+# 4. Data Preparation and Audit
+
+## 4.1. Import and standardize the data
+
+
+
+```{r import-data}
+raw_data <- read_csv(
+  data_file,
+  show_col_types = FALSE
+)
+
+# Flexible date parser
+parse_survey_date <- function(x) {
+
+  if (inherits(x, "Date")) {
+    return(x)
+  }
+
+  if (inherits(x, c("POSIXct", "POSIXlt"))) {
+    return(as.Date(x))
+  }
+
+  x <- str_trim(as.character(x))
+
+  parsed <- suppressWarnings(
+    parse_date_time(
+      x,
+      orders = c(
+        "ymd", "mdy", "dmy",
+        "ymd HMS", "mdy HMS", "dmy HMS",
+        "ymd HM", "mdy HM", "dmy HM",
+        "m/d/y", "m/d/Y",
+        "d-b-y", "d-b-Y"
+      ),
+      quiet = TRUE
+    )
+  )
+
+  as.Date(parsed)
+}
+
+data <- raw_data %>%
+  clean_names() %>%
+  rename(
+    start_date = time_period_start_date,
+    end_date = time_period_end_date
+  ) %>%
+  mutate(
+    start_date_original = as.character(start_date),
+    end_date_original = as.character(end_date),
+    start_date = parse_survey_date(start_date),
+    end_date = parse_survey_date(end_date),
+    value = as.numeric(value),
+    low_ci = as.numeric(low_ci),
+    high_ci = as.numeric(high_ci)
+  )
+
+# Check for dates that could not be parsed
+unparsed_dates <- data %>%
+  filter(
+    (!is.na(start_date_original) &
+       start_date_original != "" &
+       is.na(start_date)) |
+    (!is.na(end_date_original) &
+       end_date_original != "" &
+       is.na(end_date))
+  ) %>%
+  select(
+    start_date_original,
+    end_date_original
+  ) %>%
+  distinct()
+
+if (nrow(unparsed_dates) > 0) {
+  print(head(unparsed_dates, 20))
+
+  stop(
+    "Some survey dates could not be parsed. ",
+    "Inspect the original date values printed above."
+  )
+}
+
+data <- data %>%
+  mutate(
+    time_numeric = as.numeric(
+      start_date - min(start_date, na.rm = TRUE)
+    )
+  ) %>%
+  arrange(start_date, end_date)
+
+required_columns <- c(
+  "indicator", "group", "subgroup", "phase",
+  "start_date", "end_date", "value",
+  "low_ci", "high_ci", "time_numeric"
+)
+
+missing_columns <- setdiff(
+  required_columns,
+  names(data)
+)
+
+if (length(missing_columns) > 0) {
+  stop(
+    "Required columns missing: ",
+    paste(missing_columns, collapse = ", ")
+  )
+}
+
+glimpse(data)
+```
+
+
+
+## 4.2. Dataset overview
+
+```{r dataset-overview}
+dataset_overview <- tibble(
+  Measure = c(
+    "Total records",
+    "Unique indicators",
+    "Unique demographic groups",
+    "Unique subgroups",
+    "Unique survey periods",
+    "First survey date",
+    "Last survey date"
+  ),
+  Value = c(
+    nrow(data),
+    n_distinct(data$indicator),
+    n_distinct(data$group),
+    n_distinct(data$subgroup),
+    n_distinct(data$start_date),
+    as.character(min(data$start_date, na.rm = TRUE)),
+    as.character(max(data$end_date, na.rm = TRUE))
+  )
+)
+
+kable(dataset_overview, caption = "Dataset overview")
+```
+
+## 4.3. Missing values
+
+```{r missing-values}
+missing_summary <- data %>%
+  summarise(
+    across(
+      everything(),
+      ~ sum(is.na(.x))
+    )
+  ) %>%
+  pivot_longer(
+    everything(),
+    names_to = "Variable",
+    values_to = "Missing values"
+  ) %>%
+  filter(`Missing values` > 0) %>%
+  arrange(desc(`Missing values`))
+
+kable(missing_summary, caption = "Missing values by variable")
+```
+
+## 4.4. Duplicate records
+
+```{r duplicate-check}
+duplicate_records <- data %>%
+  count(
+    indicator,
+    group,
+    subgroup,
+    start_date,
+    end_date
+  ) %>%
+  filter(n > 1)
+
+if (nrow(duplicate_records) == 0) {
+  cat("No duplicate indicator-group-subgroup-period records were detected.")
+} else {
+  kable(
+    duplicate_records,
+    caption = "Potential duplicate records requiring investigation"
+  )
+}
+```
+
+## 4.5. Estimate and confidence interval checks
+
+```{r estimate-checks}
+estimate_checks <- data %>%
+  summarise(
+    Minimum_estimate = min(value, na.rm = TRUE),
+    Maximum_estimate = max(value, na.rm = TRUE),
+    Estimates_below_zero = sum(value < 0, na.rm = TRUE),
+    Estimates_above_100 = sum(value > 100, na.rm = TRUE),
+    Invalid_CI_order = sum(
+      low_ci > high_ci,
+      na.rm = TRUE
+    ),
+    Estimates_below_CI = sum(
+      value < low_ci,
+      na.rm = TRUE
+    ),
+    Estimates_above_CI = sum(
+      value > high_ci,
+      na.rm = TRUE
+    )
+  )
+
+kable(
+  estimate_checks,
+  digits = 2,
+  caption = "Estimate and confidence interval validation"
+)
+```
+
+## 4.6. Survey-period structure
+
+```{r period-structure}
+period_calendar <- data %>%
+  distinct(start_date, end_date) %>%
+  arrange(start_date) %>%
+  mutate(
+    days_between_periods = as.numeric(
+      start_date - lag(start_date)
+    )
+  )
+
+period_gap_summary <- period_calendar %>%
+  summarise(
+    Number_of_periods = n(),
+    Minimum_gap_days = min(
+      days_between_periods,
+      na.rm = TRUE
+    ),
+    Median_gap_days = median(
+      days_between_periods,
+      na.rm = TRUE
+    ),
+    Mean_gap_days = mean(
+      days_between_periods,
+      na.rm = TRUE
+    ),
+    Maximum_gap_days = max(
+      days_between_periods,
+      na.rm = TRUE
+    )
+  )
+
+kable(
+  period_gap_summary,
+  digits = 1,
+  caption = "Spacing between survey periods"
+)
+```
+
+## 4.7. Phase distribution
+
+```{r phase-distribution}
+phase_distribution <- data %>%
+  filter(
+    group %in% c(age_group_name, race_group_name),
+    indicator == primary_outcome
+  ) %>%
+  distinct(start_date, end_date, phase) %>%
+  count(phase, name = "Number of periods") %>%
+  arrange(phase)
+
+kable(
+  phase_distribution,
+  caption = "Survey phase distribution for the primary outcome"
+)
+```
+
+## 4.8. Period completeness across indicators
+
+The primary outcome is used as the reference calendar for each demographic subgroup. Secondary indicators are checked against the same subgroup-specific periods.
+
+This distinguishes between periods with no record and periods with a record but a missing estimate.
+
+```{r period-completeness}
+analysis_groups <- c(age_group_name, race_group_name)
+
+analysis_indicators <- c(
+  primary_outcome,
+  secondary_outcomes
+)
+
+analysis_data <- data %>%
+  filter(
+    group %in% analysis_groups,
+    indicator %in% analysis_indicators
+  )
+
+reference_periods <- analysis_data %>%
+  filter(indicator == primary_outcome) %>%
+  distinct(
+    group,
+    subgroup,
+    start_date,
+    end_date
+  )
+
+observed_periods <- analysis_data %>%
+  group_by(
+    indicator,
+    group,
+    subgroup,
+    start_date,
+    end_date
+  ) %>%
+  summarise(
+    record_present = TRUE,
+    estimate_available = any(!is.na(value)),
+    .groups = "drop"
+  )
+
+period_status <- reference_periods %>%
+  crossing(
+    indicator = analysis_indicators
+  ) %>%
+  left_join(
+    observed_periods,
+    by = c(
+      "indicator",
+      "group",
+      "subgroup",
+      "start_date",
+      "end_date"
+    )
+  ) %>%
+  mutate(
+    status = case_when(
+      is.na(record_present) ~ "No record",
+      !estimate_available ~ "Record but missing estimate",
+      TRUE ~ "Estimate available"
+    )
+  )
+
+period_completeness_summary <- period_status %>%
+  count(
+    indicator,
+    group,
+    status,
+    name = "Number of periods"
+  ) %>%
+  arrange(group, indicator, status)
+
+kable(
+  period_completeness_summary,
+  caption = "Completeness of secondary indicators relative to the primary outcome"
+)
+
+period_completeness_by_subgroup <- period_status %>%
+  group_by(indicator, group, subgroup) %>%
+  summarise(
+    Expected_periods = n(),
+    Available_estimates = sum(
+      status == "Estimate available"
+    ),
+    Missing_records = sum(
+      status == "No record"
+    ),
+    Missing_estimates = sum(
+      status == "Record but missing estimate"
+    ),
+    .groups = "drop"
+  )
+
+kable(
+  period_completeness_by_subgroup,
+  caption = "Period completeness by demographic subgroup"
+)
+```
+
+## 4.9. Identify missing secondary-outcome periods
+
+```{r missing-secondary-periods}
+missing_secondary_periods <- period_status %>%
+  filter(
+    indicator != primary_outcome,
+    status != "Estimate available"
+  ) %>%
+  arrange(
+    indicator,
+    group,
+    subgroup,
+    start_date
+  )
+
+kable(
+  missing_secondary_periods %>%
+    select(
+      indicator,
+      group,
+      subgroup,
+      start_date,
+      end_date,
+      status
+    ) %>%
+    slice_head(n = 40),
+  caption = "Examples of missing secondary-outcome periods"
+)
+```
+
+## 4.10. Summary by demographic group and indicator
+
+```{r group-summary}
+group_summary <- analysis_data %>%
+  group_by(indicator, group) %>%
+  summarise(
+    Records = n(),
+    Subgroups = n_distinct(subgroup),
+    Periods = n_distinct(start_date),
+    Available_estimates = sum(!is.na(value)),
+    Mean_estimate = mean(value, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+kable(
+  group_summary,
+  digits = 2,
+  caption = "Summary of demographic estimates by indicator"
+)
+```
+
+# 5. National Trends
+
+## 5.1. National estimates
+
+```{r national-data}
+national_data <- data %>%
+  filter(
+    group == "National Estimate",
+    indicator %in% analysis_indicators
+  ) %>%
+  filter(!is.na(value)) %>%
+  arrange(indicator, start_date)
+
+national_summary <- national_data %>%
+  group_by(indicator) %>%
+  summarise(
+    Number_of_periods = n(),
+    Mean = mean(value),
+    SD = sd(value),
+    Minimum = min(value),
+    Maximum = max(value),
+    .groups = "drop"
+  )
+
+kable(
+  national_summary,
+  digits = 2,
+  caption = "National prevalence estimates"
+)
+```
+
+## 5.2. National trend visualization
+
+```{r national-trends-plot, fig.height=6}
+ggplot(
+  national_data,
+  aes(
+    x = start_date,
+    y = value,
+    color = indicator
+  )
+) +
+  geom_line(linewidth = 0.7) +
+  geom_point(size = 1.2) +
+  labs(
+    title = "National trends in anxiety and depressive symptoms",
+    x = "Survey period",
+    y = "Published estimate (%)",
+    color = "Indicator"
+  ) +
+  theme(
+    legend.position = "bottom"
+  )
+```
+
+# 6. Construction of Demographic Disparity Measures
+
+## 6.1. Prepare age estimates
+
+```{r age-data}
+age_data <- data %>%
+  filter(
+    group == age_group_name,
+    indicator == primary_outcome,
+    !is.na(value)
+  ) %>%
+  mutate(
+    subgroup = str_squish(subgroup)
+  ) %>%
+  arrange(start_date)
+
+age_reference_candidates <- age_data %>%
+  distinct(subgroup) %>%
+  filter(str_detect(subgroup, age_reference_pattern))
+
+if (nrow(age_reference_candidates) != 1) {
+  stop(
+    "The expected age reference category was not uniquely identified. ",
+    "Inspect age subgroup labels."
+  )
+}
+
+age_reference_label <- age_reference_candidates$subgroup[[1]]
+
+age_reference <- age_data %>%
+  filter(subgroup == age_reference_label) %>%
+  select(
+    start_date,
+    end_date,
+    reference_value = value
+  )
+
+age_comparisons <- age_data %>%
+  filter(subgroup != age_reference_label) %>%
+  inner_join(
+    age_reference,
+    by = c("start_date", "end_date")
+  ) %>%
+  mutate(
+    absolute_difference = value - reference_value,
+    prevalence_ratio = value / reference_value,
+    log_prevalence_ratio = log(prevalence_ratio),
+    time_numeric = as.numeric(
+      start_date - min(start_date)
+    )
+  )
+
+age_comparisons %>%
+  group_by(subgroup) %>%
+  summarise(
+    Mean_gap = mean(absolute_difference),
+    Mean_ratio = mean(prevalence_ratio),
+    Number_of_periods = n(),
+    .groups = "drop"
+  ) %>%
+  kable(
+    digits = 2,
+    caption = "Age disparities relative to the reference group"
+  )
+```
+
+## 6.2. Prepare racial/ethnic estimates
+
+```{r race-data}
+race_data <- data %>%
+  filter(
+    group == race_group_name,
+    indicator == primary_outcome,
+    !is.na(value)
+  ) %>%
+  mutate(
+    subgroup = str_squish(subgroup)
+  ) %>%
+  arrange(start_date)
+
+if (!race_reference_label %in% race_data$subgroup) {
+  stop(
+    "The expected racial/ethnic reference category was not found. ",
+    "Inspect race subgroup labels."
+  )
+}
+
+race_reference <- race_data %>%
+  filter(subgroup == race_reference_label) %>%
+  select(
+    start_date,
+    end_date,
+    reference_value = value
+  )
+
+race_comparisons <- race_data %>%
+  filter(subgroup != race_reference_label) %>%
+  inner_join(
+    race_reference,
+    by = c("start_date", "end_date")
+  ) %>%
+  mutate(
+    absolute_difference = value - reference_value,
+    prevalence_ratio = value / reference_value,
+    log_prevalence_ratio = log(prevalence_ratio),
+    time_numeric = as.numeric(
+      start_date - min(start_date)
+    )
+  )
+
+race_comparisons %>%
+  group_by(subgroup) %>%
+  summarise(
+    Mean_gap = mean(absolute_difference),
+    Mean_ratio = mean(prevalence_ratio),
+    Number_of_periods = n(),
+    .groups = "drop"
+  ) %>%
+  kable(
+    digits = 2,
+    caption = "Racial/ethnic disparities relative to the reference group"
+  )
+```
+
+## 6.3. Plot raw age disparity trajectories
+
+```{r age-gap-plot, fig.height=6}
+ggplot(
+  age_comparisons,
+  aes(
+    x = start_date,
+    y = absolute_difference,
+    color = subgroup
+  )
+) +
+  geom_hline(
+    yintercept = 0,
+    linetype = "dashed"
+  ) +
+  geom_line(linewidth = 0.7) +
+  geom_point(size = 1) +
+  labs(
+    title = "Age-related disparities over time",
+    subtitle = paste(
+      "Absolute differences relative to",
+      age_reference_label
+    ),
+    x = "Survey period",
+    y = "Difference in percentage points",
+    color = "Age group"
+  ) +
+  theme(legend.position = "bottom")
+```
+
+## 6.4. Plot raw racial/ethnic disparity trajectories
+
+```{r race-gap-plot, fig.height=6}
+ggplot(
+  race_comparisons,
+  aes(
+    x = start_date,
+    y = absolute_difference,
+    color = subgroup
+  )
+) +
+  geom_hline(
+    yintercept = 0,
+    linetype = "dashed"
+  ) +
+  geom_line(linewidth = 0.7) +
+  geom_point(size = 1) +
+  labs(
+    title = "Racial/ethnic disparities over time",
+    subtitle = paste(
+      "Absolute differences relative to",
+      race_reference_label
+    ),
+    x = "Survey period",
+    y = "Difference in percentage points",
+    color = "Racial/ethnic group"
+  ) +
+  theme(legend.position = "bottom")
+```
+
+## 6.5. Relative disparity trajectories
+
+```{r relative-disparities, fig.height=6}
+relative_data <- bind_rows(
+  age_comparisons %>%
+    transmute(
+      start_date,
+      subgroup,
+      dimension = "Age",
+      prevalence_ratio
+    ),
+  race_comparisons %>%
+    transmute(
+      start_date,
+      subgroup,
+      dimension = "Race/ethnicity",
+      prevalence_ratio
+    )
+)
+
+ggplot(
+  relative_data,
+  aes(
+    x = start_date,
+    y = prevalence_ratio,
+    color = subgroup
+  )
+) +
+  geom_hline(
+    yintercept = 1,
+    linetype = "dashed"
+  ) +
+  geom_line(linewidth = 0.7) +
+  facet_wrap(~ dimension, scales = "free_y") +
+  labs(
+    title = "Relative prevalence disparities over time",
+    x = "Survey period",
+    y = "Prevalence ratio",
+    color = "Subgroup"
+  ) +
+  theme(legend.position = "bottom")
+```
+
+# 7. Primary Statistical Modelling
+
+## 7.1. Modelling strategy
+
+The candidate models are fitted separately to each demographic gap trajectory.
+
+The response variable is the absolute prevalence difference in percentage points.
+
+The time variable is measured in days from the first observation in the relevant series. This preserves the irregular spacing of the survey periods.
+
+The candidate models are:
+
+- Linear trend model.
+- Generalized additive model.
+- Interrupted time-series model, only when a documented break date is available.
+- GAM with continuous-time correlated errors.
+
+The model comparison is based on the same observations within each subgroup series.
+
+## 7.2. Prepare model datasets
+
+```{r model-data}
+model_data <- bind_rows(
+  age_comparisons %>%
+    transmute(
+      dimension = "Age",
+      subgroup,
+      start_date,
+      time_numeric = as.numeric(
+        start_date - min(start_date)
+      ),
+      gap = absolute_difference,
+      prevalence_ratio,
+      log_prevalence_ratio
+    ),
+  race_comparisons %>%
+    transmute(
+      dimension = "Race/ethnicity",
+      subgroup,
+      start_date,
+      time_numeric = as.numeric(
+        start_date - min(start_date)
+      ),
+      gap = absolute_difference,
+      prevalence_ratio,
+      log_prevalence_ratio
+    )
+) %>%
+  filter(
+    is.finite(gap),
+    is.finite(time_numeric)
+  ) %>%
+  arrange(dimension, subgroup, start_date)
+
+model_series_summary <- model_data %>%
+  group_by(dimension, subgroup) %>%
+  summarise(
+    Number_of_observations = n(),
+    First_date = min(start_date),
+    Last_date = max(start_date),
+    Mean_gap = mean(gap),
+    SD_gap = sd(gap),
+    .groups = "drop"
+  )
+
+kable(
+  model_series_summary,
+  digits = 2,
+  caption = "Observations available for each disparity model"
+)
+```
+
+## 7.3. Fit candidate models
+
+The following function fits the linear, GAM, and correlated-error GAM models to one disparity trajectory.
+
+The correlated-error model uses a continuous-time AR(1) structure because the survey dates are irregularly spaced.
+
+```{r model-fitting}
+fit_candidate_models <- function(d) {
+
+  d <- d %>%
+    arrange(time_numeric) %>%
+    filter(
+      is.finite(gap),
+      is.finite(time_numeric)
+    )
+
+  n <- nrow(d)
+
+  if (n < 20) {
+    return(list(
+      data = d,
+      linear = NULL,
+      gam = NULL,
+      gamm = NULL,
+      message = "Insufficient observations for planned model fitting."
+    ))
+  }
+
+  k_value <- min(
+    gam_k,
+    max(4, floor(n / 5))
+  )
+
+  linear_fit <- tryCatch(
+    lm(
+      gap ~ time_numeric,
+      data = d
+    ),
+    error = function(e) NULL
+  )
+
+  gam_fit <- tryCatch(
+    mgcv::gam(
+      gap ~ s(
+        time_numeric,
+        k = k_value,
+        bs = "cr"
+      ),
+      data = d,
+      method = "REML"
+    ),
+    error = function(e) NULL
+  )
+
+  gamm_fit <- tryCatch(
+    mgcv::gamm(
+      gap ~ s(
+        time_numeric,
+        k = k_value,
+        bs = "cr"
+      ),
+      data = d,
+      correlation = nlme::corCAR1(
+        form = ~ time_numeric
+      ),
+      method = "REML"
+    ),
+    error = function(e) NULL
+  )
+
+  list(
+    data = d,
+    linear = linear_fit,
+    gam = gam_fit,
+    gamm = gamm_fit,
+    message = NULL
+  )
+}
+
+series_list <- model_data %>%
+  group_by(dimension, subgroup) %>%
+  group_split()
+
+series_keys <- model_data %>%
+  distinct(dimension, subgroup) %>%
+  arrange(dimension, subgroup)
+
+names(series_list) <- paste(
+  series_keys$dimension,
+  series_keys$subgroup,
+  sep = " | "
+)
+
+model_fits <- lapply(
+  series_list,
+  fit_candidate_models
+)
+
+model_fit_status <- tibble(
+  series = names(model_fits),
+  linear_fitted = map_lgl(
+    model_fits,
+    ~ !is.null(.x$linear)
+  ),
+  gam_fitted = map_lgl(
+    model_fits,
+    ~ !is.null(.x$gam)
+  ),
+  gamm_fitted = map_lgl(
+    model_fits,
+    ~ !is.null(.x$gamm)
+  )
+)
+
+kable(
+  model_fit_status,
+  caption = "Candidate model fitting status"
+)
+```
+
+## 7.4. Linear trend results
+
+```{r linear-model-results}
+linear_results <- imap_dfr(
+  model_fits,
+  function(fit, series_name) {
+
+    if (is.null(fit$linear)) {
+      return(tibble())
+    }
+
+    tidy(fit$linear, conf.int = TRUE) %>%
+      filter(term == "time_numeric") %>%
+      mutate(
+        series = series_name,
+        slope_per_30_days = estimate * 30,
+        lower_30_days = conf.low * 30,
+        upper_30_days = conf.high * 30
+      )
+  }
+)
+
+kable(
+  linear_results %>%
+    select(
+      series,
+      slope_per_30_days,
+      lower_30_days,
+      upper_30_days,
+      p.value
+    ),
+  digits = 4,
+  caption = "Linear trend estimates per 30 days"
+)
+```
+
+## 7.5. GAM results
+
+```{r gam-results}
+gam_results <- imap_dfr(
+  model_fits,
+  function(fit, series_name) {
+
+    if (is.null(fit$gam)) {
+      return(tibble())
+    }
+
+    smooth_table <- summary(fit$gam)$s.table
+
+    if (is.null(smooth_table)) {
+      return(tibble())
+    }
+
+    tibble(
+      series = series_name,
+      effective_degrees_freedom = smooth_table[1, "edf"],
+      reference_degrees_freedom = smooth_table[1, "Ref.df"],
+      test_statistic = smooth_table[1, "F"],
+      p_value = smooth_table[1, "p-value"],
+      adjusted_p_value = NA_real_
+    )
+  }
+)
+
+if (nrow(gam_results) > 0) {
+  gam_results <- gam_results %>%
+    mutate(
+      adjusted_p_value = p.adjust(
+        p_value,
+        method = "holm"
+      )
+    )
+}
+
+kable(
+  gam_results,
+  digits = 4,
+  caption = "GAM smooth-term results with Holm adjustment"
+)
+```
+
+## 7.6. Interrupted time-series analysis
+
+The interrupted time-series model is fitted only when a break date has been documented from the survey methodology.
+
+Do not enter a date based only on a visual change in the outcome.
+
+```{r interrupted-time-series}
+fit_its_model <- function(d, break_date) {
+
+  if (is.na(break_date)) {
+    return(NULL)
+  }
+
+  break_numeric <- as.numeric(
+    break_date - min(d$start_date)
+  )
+
+  d <- d %>%
+    mutate(
+      post_break = as.numeric(
+        start_date >= break_date
+      ),
+      time_after_break = pmax(
+        0,
+        time_numeric - break_numeric
+      )
+    )
+
+  if (
+    sum(d$post_break == 0) < 5 ||
+    sum(d$post_break == 1) < 5
+  ) {
+    return(NULL)
+  }
+
+  lm(
+    gap ~ time_numeric +
+      post_break +
+      time_after_break,
+    data = d
+  )
+}
+
+its_fits <- lapply(
+  model_fits,
+  function(fit) {
+    if (is.null(fit$data)) return(NULL)
+
+    fit_its_model(
+      fit$data,
+      its_break_date
+    )
+  }
+)
+
+its_status <- tibble(
+  series = names(its_fits),
+  fitted = map_lgl(
+    its_fits,
+    ~ !is.null(.x)
+  )
+)
+
+kable(
+  its_status,
+  caption = "Interrupted time-series model fitting status"
+)
+```
+
+```{r its-results}
+its_results <- imap_dfr(
+  its_fits,
+  function(fit, series_name) {
+
+    if (is.null(fit)) {
+      return(tibble())
+    }
+
+    tidy(fit, conf.int = TRUE) %>%
+      mutate(series = series_name)
+  }
+)
+
+if (nrow(its_results) > 0) {
+  kable(
+    its_results,
+    digits = 4,
+    caption = "Interrupted time-series model results"
+  )
+} else {
+  cat(
+    "No interrupted time-series models were fitted. ",
+    "A documented survey discontinuity date has not been specified."
+  )
+}
+```
+
+## 7.7. Model comparison
+
+AICc is calculated from the fitted model likelihoods. Comparisons are made only within the same subgroup series and using the same observations.
+
+The GAMM likelihood is taken from its underlying mixed-model component.
+
+```{r model-comparison}
+calculate_aicc <- function(model) {
+
+  if (is.null(model)) {
+    return(NA_real_)
+  }
+
+  ll <- tryCatch(
+    logLik(model),
+    error = function(e) NULL
+  )
+
+  if (is.null(ll)) {
+    return(NA_real_)
+  }
+
+  n <- attr(ll, "nobs")
+  k <- attr(ll, "df")
+
+  if (
+    is.null(n) ||
+    is.null(k) ||
+    n <= k + 1
+  ) {
+    return(NA_real_)
+  }
+
+  aic <- AIC(model)
+
+  aic + (
+    2 * k * (k + 1)
+  ) / (n - k - 1)
+}
+
+model_comparison <- imap_dfr(
+  model_fits,
+  function(fit, series_name) {
+
+    models <- list(
+      Linear = fit$linear,
+      GAM = fit$gam,
+      GAMM_CAR1 = if (
+        is.null(fit$gamm)
+      ) {
+        NULL
+      } else {
+        fit$gamm$lme
+      }
+    )
+
+    tibble(
+      series = series_name,
+      model = names(models),
+      AICc = map_dbl(
+        models,
+        calculate_aicc
+      )
+    ) %>%
+      filter(is.finite(AICc)) %>%
+      group_by(series) %>%
+      mutate(
+        delta_AICc = AICc - min(AICc),
+        AICc_rank = rank(AICc)
+      ) %>%
+      ungroup()
+  }
+)
+
+kable(
+  model_comparison,
+  digits = 2,
+  caption = "Candidate model comparison using AICc"
+)
+```
+
+## 7.8. Model selection summary
+
+The model with the lowest AICc is identified as the best-fitting candidate among the models successfully fitted to the same series.
+
+This is a diagnostic aid, not an automatic selection rule. Residual behaviour, temporal dependence, model complexity, and interpretability must also be considered.
+
+```{r model-selection}
+model_selection <- model_comparison %>%
+  group_by(series) %>%
+  slice_min(
+    AICc,
+    n = 1,
+    with_ties = TRUE
+  ) %>%
+  ungroup() %>%
+  select(
+    series,
+    Selected_by_AICc = model,
+    AICc,
+    delta_AICc
+  )
+
+kable(
+  model_selection,
+  digits = 2,
+  caption = "Best-fitting candidate according to AICc"
+)
+```
+
+# 8. Model Diagnostics
+
+## 8.1. Residual diagnostics
+
+Residual diagnostics are examined for the linear, GAM, and correlated-error GAM models.
+
+```{r diagnostic-data}
+diagnostic_data <- imap_dfr(
+  model_fits,
+  function(fit, series_name) {
+
+    output <- list()
+
+    if (!is.null(fit$linear)) {
+      output$Linear <- tibble(
+        series = series_name,
+        model = "Linear",
+        fitted = fitted(fit$linear),
+        residual = residuals(fit$linear)
+      )
+    }
+
+    if (!is.null(fit$gam)) {
+      output$GAM <- tibble(
+        series = series_name,
+        model = "GAM",
+        fitted = fitted(fit$gam),
+        residual = residuals(fit$gam)
+      )
+    }
+
+    if (!is.null(fit$gamm)) {
+      output$GAMM_CAR1 <- tibble(
+        series = series_name,
+        model = "GAMM_CAR1",
+        fitted = fitted(fit$gamm$gam),
+        residual = residuals(
+          fit$gamm$lme,
+          type = "normalized"
+        )
+      )
+    }
+
+    bind_rows(output, .id = "model_name")
+  }
+)
+```
+
+## 8.2. Residual plots
+
+```{r residual-plots, fig.height=7}
+ggplot(
+  diagnostic_data,
+  aes(
+    x = fitted,
+    y = residual
+  )
+) +
+  geom_point(alpha = 0.6) +
+  geom_hline(
+    yintercept = 0,
+    linetype = "dashed"
+  ) +
+  facet_grid(
+    model ~ series,
+    scales = "free"
+  ) +
+  labs(
+    title = "Residuals versus fitted values",
+    x = "Fitted values",
+    y = "Residuals"
+  ) +
+  theme(
+    strip.text.x = element_text(size = 7),
+    strip.text.y = element_text(size = 8)
+  )
+```
+
+## 8.3. Residual autocorrelation
+
+```{r residual-acf}
+acf_data <- imap_dfr(
+  model_fits,
+  function(fit, series_name) {
+
+    if (is.null(fit$gam)) {
+      return(tibble())
+    }
+
+    residual_values <- residuals(fit$gam)
+
+    tibble(
+      series = series_name,
+      lag = seq_along(residual_values) - 1,
+      residual = residual_values
+    )
+  }
+)
+
+acf_summary <- diagnostic_data %>%
+  group_by(series, model) %>%
+  summarise(
+    Residual_SD = sd(residual, na.rm = TRUE),
+    Mean_residual = mean(residual, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+kable(
+  acf_summary,
+  digits = 3,
+  caption = "Residual summary by candidate model"
+)
+```
+
+```{r acf-plots, fig.height=7}
+acf_results <- imap(
+  model_fits,
+  function(fit, series_name) {
+
+    if (is.null(fit$gam)) {
+      return(NULL)
+    }
+
+    acf(
+      residuals(fit$gam),
+      plot = FALSE
+    )
+  }
+)
+
+acf_plot_data <- imap_dfr(
+  acf_results,
+  function(result, series_name) {
+
+    if (is.null(result)) {
+      return(tibble())
+    }
+
+    tibble(
+      series = series_name,
+      lag = as.numeric(result$lag),
+      acf = as.numeric(result$acf)
+    )
+  }
+)
+
+ggplot(
+  acf_plot_data,
+  aes(
+    x = lag,
+    y = acf
+  )
+) +
+  geom_hline(yintercept = 0) +
+  geom_segment(
+    aes(
+      xend = lag,
+      yend = 0
+    )
+  ) +
+  facet_wrap(
+    ~ series,
+    scales = "free_y"
+  ) +
+  labs(
+    title = "Residual autocorrelation after GAM fitting",
+    x = "Lag",
+    y = "Autocorrelation"
+  )
+```
+
+# 9. Estimated Disparity Trajectories
+
+## 9.1. GAM predictions
+
+The following plots display the estimated smooth trajectories from the GAM candidate models.
+
+The intervals are model-based confidence intervals for the fitted mean trajectory. They are not survey-design-based confidence intervals for the underlying population disparity.
+
+```{r gam-predictions}
+gam_predictions <- imap_dfr(
+  model_fits,
+  function(fit, series_name) {
+
+    if (is.null(fit$gam)) {
+      return(tibble())
+    }
+
+    prediction_grid <- tibble(
+      time_numeric = seq(
+        min(fit$data$time_numeric),
+        max(fit$data$time_numeric),
+        length.out = 150
+      )
+    )
+
+    prediction <- predict(
+      fit$gam,
+      newdata = prediction_grid,
+      se.fit = TRUE
+    )
+
+    tibble(
+      series = series_name,
+      time_numeric = prediction_grid$time_numeric,
+      estimate = as.numeric(prediction$fit),
+      lower = as.numeric(
+        prediction$fit - 1.96 * prediction$se.fit
+      ),
+      upper = as.numeric(
+        prediction$fit + 1.96 * prediction$se.fit
+      )
+    )
+  }
+)
+
+prediction_dates <- model_data %>%
+  group_by(dimension, subgroup) %>%
+  summarise(
+    first_date = min(start_date),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    series = paste(
+      dimension,
+      subgroup,
+      sep = " | "
+    )
+  )
+
+gam_predictions <- gam_predictions %>%
+  left_join(
+    prediction_dates %>%
+      select(series, first_date),
+    by = "series"
+  ) %>%
+  mutate(
+    prediction_date = first_date +
+      days(round(time_numeric))
+  )
+```
+
+```{r gam-prediction-plots, fig.height=7}
+ggplot(
+  gam_predictions,
+  aes(
+    x = prediction_date,
+    y = estimate
+  )
+) +
+  geom_ribbon(
+    aes(
+      ymin = lower,
+      ymax = upper
+    ),
+    alpha = 0.15
+  ) +
+  geom_line(linewidth = 0.8) +
+  geom_hline(
+    yintercept = 0,
+    linetype = "dashed"
+  ) +
+  facet_wrap(
+    ~ series,
+    scales = "free_y"
+  ) +
+  labs(
+    title = "GAM-estimated demographic disparity trajectories",
+    x = "Survey period",
+    y = "Estimated gap (percentage points)"
+  ) +
+  theme(
+    strip.text = element_text(size = 8)
+  )
+```
+
+# 10. Secondary Outcome Analyses
+
+The separate anxiety and depression indicators are analysed as secondary outcomes.
+
+The primary modelling framework is not automatically repeated for every secondary outcome. Their main purpose is to assess whether the patterns observed for the combined indicator are also evident in the separate symptom indicators.
+
+## 10.1. Prepare secondary outcome estimates
+
+```{r secondary-data}
+secondary_data <- data %>%
+  filter(
+    group %in% analysis_groups,
+    indicator %in% secondary_outcomes,
+    !is.na(value)
+  ) %>%
+  arrange(
+    indicator,
+    group,
+    subgroup,
+    start_date
+  )
+
+secondary_summary <- secondary_data %>%
+  group_by(indicator, group, subgroup) %>%
+  summarise(
+    Number_of_periods = n(),
+    Mean_estimate = mean(value),
+    SD_estimate = sd(value),
+    Minimum = min(value),
+    Maximum = max(value),
+    .groups = "drop"
+  )
+
+kable(
+  secondary_summary,
+  digits = 2,
+  caption = "Descriptive summary of secondary outcomes"
+)
+```
+
+## 10.2. Secondary outcome trends by age
+
+```{r secondary-age-trends, fig.height=7}
+secondary_age_data <- secondary_data %>%
+  filter(group == age_group_name)
+
+ggplot(
+  secondary_age_data,
+  aes(
+    x = start_date,
+    y = value,
+    color = subgroup
+  )
+) +
+  geom_line(linewidth = 0.7) +
+  facet_wrap(
+    ~ indicator,
+    scales = "free_y"
+  ) +
+  labs(
+    title = "Anxiety and depressive symptom estimates by age",
+    x = "Survey period",
+    y = "Published estimate (%)",
+    color = "Age group"
+  ) +
+  theme(legend.position = "bottom")
+```
+
+## 10.3. Secondary outcome trends by race/ethnicity
+
+```{r secondary-race-trends, fig.height=7}
+secondary_race_data <- secondary_data %>%
+  filter(group == race_group_name)
+
+ggplot(
+  secondary_race_data,
+  aes(
+    x = start_date,
+    y = value,
+    color = subgroup
+  )
+) +
+  geom_line(linewidth = 0.7) +
+  facet_wrap(
+    ~ indicator,
+    scales = "free_y"
+  ) +
+  labs(
+    title = "Anxiety and depressive symptom estimates by race/ethnicity",
+    x = "Survey period",
+    y = "Published estimate (%)",
+    color = "Racial/ethnic group"
+  ) +
+  theme(legend.position = "bottom")
+```
+
+# 11. Sensitivity Analyses
+
+## 11.1. Alternative age reference group
+
+The 50–59 age group is used as an alternative reference category.
+
+```{r alternative-age-reference}
+alternative_age_label <- age_data %>%
+  distinct(subgroup) %>%
+  filter(
+    str_detect(
+      subgroup,
+      regex(
+        "^\\s*50\\s*[-–—]\\s*59\\s+years\\s*$",
+        ignore_case = TRUE
+      )
+    )
+  ) %>%
+  pull(subgroup)
+
+if (length(alternative_age_label) == 1) {
+
+  alternative_age_reference <- age_data %>%
+    filter(
+      subgroup == alternative_age_label
+    ) %>%
+    select(
+      start_date,
+      end_date,
+      alternative_reference_value = value
+    )
+
+  alternative_age_gaps <- age_data %>%
+    filter(
+      subgroup != alternative_age_label
+    ) %>%
+    inner_join(
+      alternative_age_reference,
+      by = c("start_date", "end_date")
+    ) %>%
+    mutate(
+      alternative_gap = value -
+        alternative_reference_value
+    )
+
+  alternative_age_summary <- alternative_age_gaps %>%
+    group_by(subgroup) %>%
+    summarise(
+      Mean_gap = mean(alternative_gap),
+      SD_gap = sd(alternative_gap),
+      Number_of_periods = n(),
+      .groups = "drop"
+    )
+
+  kable(
+    alternative_age_summary,
+    digits = 2,
+    caption = "Age disparities using 50–59 years as the reference"
+  )
+
+} else {
+
+  cat(
+    "The alternative age reference category was not uniquely identified."
+  )
+}
+```
+
+## 11.2. Alternative disparity measures
+
+The absolute difference, prevalence ratio, and log prevalence ratio are compared descriptively.
+
+```{r disparity-measure-summary}
+measure_summary <- bind_rows(
+  age_comparisons %>%
+    mutate(dimension = "Age"),
+  race_comparisons %>%
+    mutate(dimension = "Race/ethnicity")
+) %>%
+  group_by(dimension, subgroup) %>%
+  summarise(
+    Mean_absolute_gap = mean(
+      absolute_difference,
+      na.rm = TRUE
+    ),
+    Mean_prevalence_ratio = mean(
+      prevalence_ratio,
+      na.rm = TRUE
+    ),
+    Mean_log_prevalence_ratio = mean(
+      log_prevalence_ratio,
+      na.rm = TRUE
+    ),
+    .groups = "drop"
+  )
+
+kable(
+  measure_summary,
+  digits = 3,
+  caption = "Comparison of alternative disparity measures"
+)
+```
+
+## 11.3. Alternative analysis windows
+
+The following function allows the analysis to be repeated within a specified date window.
+
+The window should be chosen using HPS documentation, not based on which dates produce statistically significant results.
+
+```{r analysis-window-function}
+filter_analysis_window <- function(
+  d,
+  start = min(d$start_date),
+  end = max(d$start_date)
+) {
+
+  d %>%
+    filter(
+      start_date >= as.Date(start),
+      start_date <= as.Date(end)
+    )
+}
+```
+
+The primary analysis uses the full available period. Once survey documentation has been reviewed, documented transitions can be entered below.
+
+```{r analysis-window-settings}
+# Enter dates only after confirming the relevant
+# survey transition from official HPS documentation.
+
+documented_window_start <- as.Date(NA)
+documented_window_end <- as.Date(NA)
+
+if (
+  !is.na(documented_window_start) &&
+  !is.na(documented_window_end)
+) {
+
+  window_sensitivity_data <- filter_analysis_window(
+    model_data,
+    start = documented_window_start,
+    end = documented_window_end
+  )
+
+  window_sensitivity_summary <- window_sensitivity_data %>%
+    group_by(dimension, subgroup) %>%
+    summarise(
+      Number_of_observations = n(),
+      Mean_gap = mean(gap),
+      SD_gap = sd(gap),
+      .groups = "drop"
+    )
+
+  kable(
+    window_sensitivity_summary,
+    digits = 2,
+    caption = "Sensitivity analysis within the documented analysis window"
+  )
+
+} else {
+
+  cat(
+    "No alternative analysis window has been specified. ",
+    "The primary analysis retains the full available period."
+  )
+}
+```
+
+## 11.4. Investigate imprecise subgroup estimates
+
+Subgroups with unusually wide confidence intervals are not automatically excluded.
+
+Their precision is examined before deciding whether any exclusion is methodologically justified.
+
+```{r precision-analysis}
+precision_data <- data %>%
+  filter(
+    group %in% analysis_groups,
+    indicator == primary_outcome
+  ) %>%
+  mutate(
+    ci_width = high_ci - low_ci
+  )
+
+precision_summary <- precision_data %>%
+  group_by(group, subgroup) %>%
+  summarise(
+    Number_of_periods = sum(!is.na(value)),
+    Mean_CI_width = mean(ci_width, na.rm = TRUE),
+    Median_CI_width = median(ci_width, na.rm = TRUE),
+    Maximum_CI_width = max(ci_width, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(Mean_CI_width))
+
+kable(
+  precision_summary,
+  digits = 2,
+  caption = "Published confidence interval widths by demographic subgroup"
+)
+```
+
+```{r precision-plot, fig.height=6}
+ggplot(
+  precision_data,
+  aes(
+    x = start_date,
+    y = ci_width,
+    color = subgroup
+  )
+) +
+  geom_line(linewidth = 0.6) +
+  facet_wrap(
+    ~ group,
+    scales = "free_y"
+  ) +
+  labs(
+    title = "Variation in published confidence interval widths",
+    x = "Survey period",
+    y = "Confidence interval width (percentage points)",
+    color = "Subgroup"
+  ) +
+  theme(legend.position = "bottom")
+```
+
+## 11.5. Approximate uncertainty of subgroup differences
+
+If the published confidence intervals are confirmed to be 95% intervals constructed using an approximately normal method, individual standard errors can be approximated.
+
+The following calculation assumes independence between the subgroup estimates. This assumption may not hold for estimates derived from the same survey.
+
+Therefore, these calculations are exploratory and must not be presented as exact survey-design-based confidence intervals for disparities.
+
+```{r approximate-gap-uncertainty}
+approximate_se <- function(lower, upper) {
+  (upper - lower) / (2 * 1.96)
+}
+
+calculate_approximate_gap_uncertainty <- function(
+  subgroup_data,
+  reference_data
+) {
+
+  subgroup_data %>%
+    select(
+      start_date,
+      end_date,
+      subgroup,
+      value,
+      low_ci,
+      high_ci
+    ) %>%
+    inner_join(
+      reference_data %>%
+        select(
+          start_date,
+          end_date,
+          reference_value = value,
+          reference_low = low_ci,
+          reference_high = high_ci
+        ),
+      by = c("start_date", "end_date")
+    ) %>%
+    mutate(
+      subgroup_se = approximate_se(
+        low_ci,
+        high_ci
+      ),
+      reference_se = approximate_se(
+        reference_low,
+        reference_high
+      ),
+      approximate_gap_se = sqrt(
+        subgroup_se^2 + reference_se^2
+      ),
+      gap = value - reference_value,
+      approximate_lower = gap -
+        1.96 * approximate_gap_se,
+      approximate_upper = gap +
+        1.96 * approximate_gap_se
+    )
+}
+
+age_reference_ci <- age_data %>%
+  filter(subgroup == age_reference_label)
+
+race_reference_ci <- race_data %>%
+  filter(subgroup == race_reference_label)
+
+approximate_age_uncertainty <- calculate_approximate_gap_uncertainty(
+  age_data %>%
+    filter(subgroup != age_reference_label),
+  age_reference_ci
+)
+
+approximate_race_uncertainty <- calculate_approximate_gap_uncertainty(
+  race_data %>%
+    filter(subgroup != race_reference_label),
+  race_reference_ci
+)
+
+approximate_uncertainty_summary <- bind_rows(
+  approximate_age_uncertainty %>%
+    mutate(dimension = "Age"),
+  approximate_race_uncertainty %>%
+    mutate(dimension = "Race/ethnicity")
+) %>%
+  group_by(dimension, subgroup) %>%
+  summarise(
+    Number_of_periods = n(),
+    Mean_approximate_SE = mean(
+      approximate_gap_se,
+      na.rm = TRUE
+    ),
+    Proportion_intervals_excluding_zero = mean(
+      approximate_lower > 0 |
+        approximate_upper < 0,
+      na.rm = TRUE
+    ),
+    .groups = "drop"
+  )
+
+kable(
+  approximate_uncertainty_summary,
+  digits = 3,
+  caption = "Exploratory uncertainty estimates under an independence assumption"
+)
+```
+
+# 12. Interpretation and Limitations
+
+## 12.1. Interpretation of demographic disparities
+
+The absolute difference describes the difference in published prevalence estimates in percentage points.
+
+A positive gap indicates that the subgroup estimate is higher than the reference-group estimate. A negative gap indicates that it is lower.
+
+A prevalence ratio above one indicates a higher estimate in the subgroup than in the reference group. A ratio below one indicates a lower estimate.
+
+These measures describe marginal disparities. They do not represent age-adjusted racial/ethnic disparities or race-adjusted age disparities.
+
+## 12.2. Survey design and uncertainty
+
+The dataset contains published subgroup estimates rather than respondent-level observations and survey design information.
+
+The analysis cannot reproduce the original survey weighting, stratification, clustering, or replicate-weight procedures.
+
+Furthermore, the covariance between subgroup estimates is unavailable. Confidence intervals for individual estimates cannot be combined to produce exact confidence intervals for their differences without additional information.
+
+Consequently, model-based uncertainty from the gap trajectories must be interpreted cautiously.
+
+## 12.3. Temporal comparability
+
+The HPS underwent changes in survey phases, frequency, methodology, and potentially measurement procedures.
+
+The presence of a phase label does not by itself establish that a discontinuity occurred.
+
+The official documentation must be reviewed before interpreting abrupt changes as substantive changes in population mental health.
+
+## 12.4. Aggregate data limitations
+
+The analysis uses aggregate subgroup estimates. It cannot:
+
+- Track changes within individual respondents.
+- Estimate individual-level risk factors.
+- Adjust age disparities for race/ethnicity or vice versa.
+- Establish causal effects of policy changes, vaccination, or pandemic events.
+- Distinguish changes in symptom prevalence from all possible changes in survey response patterns.
+
+## 12.5. Symptom indicators
+
+The indicators measure symptoms consistent with anxiety or depressive disorders. They are not equivalent to clinical diagnoses.
+
+## 12.6. General interpretation
+
+The findings should be interpreted as changes in published population-level estimates and demographic gaps over time.
+
+Any claims about narrowing or widening disparities should be supported by the estimated trajectories, model diagnostics, uncertainty, and sensitivity analyses.
+
+# 13. Reproducibility and Export
+
+## 13.1. Export model results
+
+```{r export-results}
+dir.create(
+  "results",
+  showWarnings = FALSE,
+  recursive = TRUE
+)
+
+write_csv(
+  model_data,
+  "results/demographic_gap_data.csv"
+)
+
+write_csv(
+  linear_results,
+  "results/linear_model_results.csv"
+)
+
+write_csv(
+  gam_results,
+  "results/gam_model_results.csv"
+)
+
+write_csv(
+  model_comparison,
+  "results/model_comparison.csv"
+)
+
+write_csv(
+  model_selection,
+  "results/model_selection.csv"
+)
+
+write_csv(
+  period_completeness_summary,
+  "results/period_completeness_summary.csv"
+)
+
+write_csv(
+  period_completeness_by_subgroup,
+  "results/period_completeness_by_subgroup.csv"
+)
+
+write_csv(
+  precision_summary,
+  "results/subgroup_precision_summary.csv"
+)
+
+write_csv(
+  approximate_uncertainty_summary,
+  "results/approximate_gap_uncertainty.csv"
+)
+
+if (nrow(its_results) > 0) {
+  write_csv(
+    its_results,
+    "results/interrupted_time_series_results.csv"
+  )
+}
+```
+
+## 13.2. Record software versions
+
+```{r software-versions}
+sessionInfo()
+```
+
+# 14. References
+
+Centers for Disease Control and Prevention. Household Pulse Survey: Technical documentation and data dissemination materials. National Center for Health Statistics.
+
+U.S. Census Bureau. Household Pulse Survey: Methodology, questionnaires, and data documentation.
+
+Wood, S. N. (2017). *Generalized Additive Models: An Introduction with R* (2nd ed.). Chapman and Hall/CRC.
